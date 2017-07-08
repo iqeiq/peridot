@@ -123,13 +123,13 @@ public class ColorPicker {
 
         Canvas mhc = new Canvas(mhueBitmap);
         mhc.drawColor(Color.WHITE);
-        updateMarker(mhc, hsv[0]);
+        updateMarker(mhc, hsv[0] * width / 360.f);
         Canvas msc = new Canvas(msatBitmap);
         msc.drawColor(Color.WHITE);
-        updateMarker(msc, hsv[1]);
+        updateMarker(msc, hsv[1] * width);
         Canvas mvc = new Canvas(mvalBitmap);
         mvc.drawColor(Color.WHITE);
-        updateMarker(mvc, hsv[2]);
+        updateMarker(mvc, hsv[2] * width);
 
         _wrapImageView(popLayout, mhueBitmap);
         ImageView hv = _wrapImageView(popLayout, hueBitmap);
