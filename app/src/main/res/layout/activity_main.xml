@@ -26,6 +26,7 @@
         android:layout_gravity="bottom|start"
         android:layout_margin="16dp"
         android:clickable="true"
+        app:backgroundTint="@color/colorAccent"
         app:srcCompat="@android:drawable/ic_menu_close_clear_cancel"/>
 
     <SeekBar
@@ -36,5 +37,17 @@
         android:progress="50"
         android:layout_gravity="bottom|center"
         android:thumb="@drawable/circle_shape" />
+
+    <ToggleButton
+        android:id="@+id/toggle_online"
+        android:layout_width="48dp"
+        android:layout_height="48dp"
+        android:layout_margin="16dp"
+        android:layout_gravity="top|start"
+        android:background="@drawable/circle_toggle"
+        android:text=""
+        android:textOn=""
+        android:textOff="" />
+
 
 </FrameLayout>

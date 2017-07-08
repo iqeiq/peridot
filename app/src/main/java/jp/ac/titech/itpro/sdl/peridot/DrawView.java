@@ -59,12 +59,6 @@ public class DrawView extends View {
         canvas.setBitmap(bitmap);
     }
 
-    public void destroy() {
-        if (bitmap != null) {
-            bitmap.recycle();
-        }
-    }
-
     @Override
     protected void onDraw(Canvas c) {
         super.onDraw(c);
@@ -114,6 +108,7 @@ public class DrawView extends View {
                 int d = 1 + (int)(Math.floor(dist(x1, y1, x2, y2) + dist(x2, y2, x3, y3)));
                 // 媒介変数t (0->1) をもとに描画
                 for(int t = 0; t <= d; ++t) {
+                    // TODO: 速度でブラシ幅を変えたい　
                     pen.draw(interpolate(x1, y1, x2, y2, x3, y3, t * 1.0f / d));
                 }
                 // ASAP描画指示

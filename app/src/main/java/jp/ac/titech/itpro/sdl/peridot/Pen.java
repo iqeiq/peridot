@@ -47,6 +47,18 @@ public class Pen {
         this.shape = shape;
     }
 
+    public int getColor() {
+        return color;
+    }
+
+    public float getWidth() {
+        return width;
+    }
+
+    public Shape getShape() {
+        return shape;
+    }
+
     public void draw(float x, float y, float rate) {
         switch(shape) {
             case Circle:
@@ -67,7 +79,7 @@ public class Pen {
     }
 
     public void draw(Pair<Float, Float> p) {
-        draw(p, 1.0f);
+        draw(p.first, p.second);
     }
 
     private void drawRect(float x, float y, float rate) {

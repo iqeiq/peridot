@@ -1,23 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
-<selector xmlns:android="http://schemas.android.com/apk/res/android">
-    <!--<item android:state_pressed="true">
-        <shape android:shape="oval">
-            <solid android:color="#444444" />
-        </shape>
-    </item>
-
-    <item android:state_focused="true">
-        <shape android:shape="oval">
-            <solid android:color="#333333" />
-        </shape>
-    </item>-->
-ß
-    <item>
-        <shape android:shape="oval">
-            <solid android:color="#222222" />
-            <stroke
-                android:width="2dp"
-                android:color="#330000" />
-        </shape>
-    </item>
-</selector>
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+       android:shape="oval">
+    <solid android:color="#28c" />
+    <stroke
+        android:width="2dp"
+        android:color="#330000" />
+</shape>
