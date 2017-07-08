@@ -5,8 +5,8 @@ import android.graphics.Bitmap;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
+import android.graphics.PorterDuff;
 import android.graphics.Rect;
-import android.os.Handler;
 import android.util.AttributeSet;
 import android.util.Log;
 import android.util.Pair;
@@ -15,6 +15,7 @@ import android.view.View;
 
 import com.annimon.stream.IntStream;
 
+import io.reactivex.android.schedulers.AndroidSchedulers;
 import io.reactivex.subjects.PublishSubject;
 
 
@@ -26,8 +27,8 @@ public class DrawView extends View {
     private Canvas canvas;
     private Bitmap bitmap;
     private Rect bitmapRect;
-    private Handler handler = new Handler();
-    PublishSubject<Pair<Float, Float>> lines;
+    private Pen localPen = new Pen(this,Color.RED, 16.0f,Pen.Shape.Circle);
+    PublishSubject<Pair<Float, Float>> localLines;
 
     private final int target[] = {
         MotionEvent.ACTION_DOWN,
@@ -81,17 +82,17 @@ public class DrawView extends View {
         // 線の開始
         if(action == MotionEvent.ACTION_DOWN) {
             // 点列を送るためのSubjectを作成
-            lines = PublishSubject.create();
-            observe(lines, new Pen(this, Color.RED, 16.0f, Pen.Shape.Circle));
+            localLines = PublishSubject.create();
+            observe(localLines, localPen);
         }
 
         // 座標だけ送信
-        lines.onNext(Pair.create(ev.getX(), ev.getY()));
+        localLines.onNext(Pair.create(ev.getX(), ev.getY()));
 
         // 線の終了
         if(action == MotionEvent.ACTION_UP || action == MotionEvent.ACTION_CANCEL) {
-            lines.onComplete();
-            lines = null;
+            localLines.onComplete();
+            localLines = null;
         }
 
         return true;
@@ -101,6 +102,7 @@ public class DrawView extends View {
         lines
             .buffer(3, 2)   // 3つ組を作って始点を２つずらす (補間に3点使うため)
             .filter(p -> p.size() == 3) // 3つ未満なら除外 (onComplete時に3つなくても流れてくる)
+            .observeOn(AndroidSchedulers.mainThread())
             .subscribe(p -> {
                 float x1 = p.get(0).first;
                 float y1 = p.get(0).second;
@@ -110,14 +112,12 @@ public class DrawView extends View {
                 float y3 = p.get(2).second;
                 // 補間曲線のだいたいの長さ (この個数だけピクセルを描画する)
                 int d = 1 + (int)(Math.floor(dist(x1, y1, x2, y2) + dist(x2, y2, x3, y3)));
-                handler.post(()-> {
-                    // 媒介変数t (0->1) をもとに描画
-                    for(int t = 0; t <= d; ++t) {
-                        pen.draw(interpolate(x1, y1, x2, y2, x3, y3, t * 1.0f / d));
-                    }
-                    // ASAP描画指示
-                    invalidate();
-                });
+                // 媒介変数t (0->1) をもとに描画
+                for(int t = 0; t <= d; ++t) {
+                    pen.draw(interpolate(x1, y1, x2, y2, x3, y3, t * 1.0f / d));
+                }
+                // ASAP描画指示
+                invalidate();
                 Log.d(TAG, "touch " + x1 + ", " + y1);
             });
     }
@@ -142,7 +142,15 @@ public class DrawView extends View {
     }
 
     public void drawCircle(float x, float y, float r, Paint paint) {
-        canvas.drawCircle(x - r, y - r, r, paint);
+        canvas.drawCircle(x, y, r, paint);
+    }
+
+    public void clear() {
+        canvas.drawColor(Color.TRANSPARENT, PorterDuff.Mode.CLEAR);
+    }
+
+    public Pen getLocalPen() {
+        return localPen;
     }
 
 }

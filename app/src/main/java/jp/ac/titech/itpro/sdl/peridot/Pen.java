@@ -47,28 +47,36 @@ public class Pen {
         this.shape = shape;
     }
 
-    public void draw(float x, float y) {
+    public void draw(float x, float y, float rate) {
         switch(shape) {
             case Circle:
-                drawCircle(x, y);
+                drawCircle(x, y, rate);
                 break;
             case Square:
-                drawRect(x, y);
+                drawRect(x, y, rate);
                 break;
         }
     }
 
-    public void draw(Pair<Float, Float> p) {
-        draw(p.first, p.second);
+    public void draw(float x, float y) {
+        draw(x, y, 1.0f);
     }
 
-    private void drawRect(float x, float y) {
-        float half = width / 2.0f;
+    public void draw(Pair<Float, Float> p, float rate) {
+        draw(p.first, p.second, rate);
+    }
+
+    public void draw(Pair<Float, Float> p) {
+        draw(p, 1.0f);
+    }
+
+    private void drawRect(float x, float y, float rate) {
+        float half = rate * width / 2.0f;
         view.drawRect(x, y, half, half, paint);
     }
 
-    private void drawCircle(float x, float y) {
-        float half = width / 2.0f;
+    private void drawCircle(float x, float y, float rate) {
+        float half = rate * width / 2.0f;
         view.drawCircle(x, y, half, paint);
     }
 }

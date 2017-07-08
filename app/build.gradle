@@ -43,4 +43,5 @@ dependencies {
     compile 'com.jakewharton.rxbinding2:rxbinding:2.0.0'
     compile 'com.annimon:stream:1.1.8'
     compile 'org.apache.commons:commons-lang3:3.6'
+    compile 'com.android.support:design:25.3.1'
 }
