@@ -5,7 +5,6 @@ import android.graphics.Bitmap;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
-import android.graphics.PorterDuff;
 import android.graphics.Rect;
 import android.util.AttributeSet;
 import android.util.Log;
@@ -57,6 +56,7 @@ public class DrawView extends View {
         bitmapRect = new Rect(0, 0, bitmap.getWidth(), bitmap.getHeight());
         canvas = new Canvas();
         canvas.setBitmap(bitmap);
+        canvas.drawColor(Color.WHITE);
     }
 
     @Override
@@ -141,7 +141,7 @@ public class DrawView extends View {
     }
 
     public void clear() {
-        canvas.drawColor(Color.TRANSPARENT, PorterDuff.Mode.CLEAR);
+        canvas.drawColor(Color.WHITE);
     }
 
     public Pen getLocalPen() {

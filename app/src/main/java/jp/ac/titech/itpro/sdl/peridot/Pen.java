@@ -9,18 +9,26 @@ import android.util.Pair;
 public class Pen {
     private final DrawView view;
     private final Paint paint = new Paint();
+    private final Paint eraser = new Paint();
     private int color = Color.GRAY;
     private float width = 6.0f;
     private Shape shape = Shape.Circle;
+    private Mode mode = Mode.Draw;
 
     public enum Shape {
         Square,
         Circle
     }
 
+    public enum Mode {
+        Draw,
+        Eraser,
+    }
+
     // constructors
     public Pen(DrawView view) {
         this.view = view;
+        eraser.setColor(Color.WHITE);
     }
 
     public Pen(DrawView view, int color, float width, Shape shape) {
@@ -45,6 +53,14 @@ public class Pen {
 
     public void setShape(Shape shape) {
         this.shape = shape;
+    }
+
+    public void setMode(Mode mode) {
+        this.mode = mode;
+    }
+
+    public Mode getMode() {
+        return mode;
     }
 
     public int getColor() {
@@ -84,11 +100,11 @@ public class Pen {
 
     private void drawRect(float x, float y, float rate) {
         float half = rate * width / 2.0f;
-        view.drawRect(x, y, half, half, paint);
+        view.drawRect(x, y, half, half, mode == Mode.Draw ? paint : eraser);
     }
 
     private void drawCircle(float x, float y, float rate) {
         float half = rate * width / 2.0f;
-        view.drawCircle(x, y, half, paint);
+        view.drawCircle(x, y, half, mode == Mode.Draw ? paint : eraser);
     }
 }

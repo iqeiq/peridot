@@ -46,12 +46,23 @@ public class MainActivity extends AppCompatActivity {
         clicks(this.findViewById(R.id.button_clear))
             .subscribe(p -> view.clear() );
 
+        // eraser
+        ToggleButton eraser = (ToggleButton)this.findViewById(R.id.button_eraser);
+        clicks(eraser).subscribe(p -> {
+            Log.d(TAG, "eraser: " + eraser.isChecked());
+            view.getLocalPen().setMode(eraser.isChecked() ? Pen.Mode.Eraser : Pen.Mode.Draw);
+        });
+
         // colorボタン
         Button colorButton = (Button)this.findViewById(R.id.button_color);
         GradientDrawable bgShape = (GradientDrawable)colorButton.getBackground();
         bgShape.setColor(view.getLocalPen().getColor());
         cp = new ColorPicker(this, view, colorButton);
-        clicks(colorButton).subscribe(p -> cp.toggle());
+        clicks(colorButton).subscribe(p -> {
+            cp.toggle();
+            eraser.setChecked(false);
+            view.getLocalPen().setMode(Pen.Mode.Draw);
+        });
 
         // onlineボタン
         ToggleButton toggle = (ToggleButton)this.findViewById(R.id.toggle_online);
