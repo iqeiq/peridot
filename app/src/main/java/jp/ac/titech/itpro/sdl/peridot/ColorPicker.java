@@ -33,7 +33,7 @@ public class ColorPicker {
 
     private PopupWindow pw;
 
-    private float[] hsv = new float[3];
+    private float[] hsv = new float[3]; // 選択されている色をHSV色空間で格納しておく [0, 0, 0] - [360, 1, 1]
 
     private Bitmap hueBitmap;
     private Bitmap satBitmap;
@@ -54,16 +54,19 @@ public class ColorPicker {
         marker.setColor(Color.GRAY);
         marker.setStrokeWidth(4.f);
 
+        // 初期選択色をペンの色に合わせる
         int c = view.getLocalPen().getColor();
         RGBToHSV(Color.red(c), Color.green(c), Color.blue(c), hsv);
 
+        // カラーマップを作成
         updateHue();
         updateSaturation();
         updateValue();
     }
 
-    private Bitmap _update(Function<Integer, Integer> f) {
+    private Bitmap _updateBitmap(Function<Integer, Integer> f) {
         Bitmap bitmap = Bitmap.createBitmap(width, height, Config.ARGB_8888);
+        // bitmap.setPixel(x, y, color)を何回もやると遅いので、配列に入れてまとめてセットする
         int pixels[] = new int[width * height];
         for(int i = 0; i < width; ++i) {
             int color = f.apply(i);
@@ -74,15 +77,15 @@ public class ColorPicker {
     }
 
     private void updateHue() {
-        hueBitmap = _update(x -> HSVToColor(new float[] { x * 360.f / width, 1, 1 }));
+        hueBitmap = _updateBitmap(x -> HSVToColor(new float[] { x * 360.f / width, 1, 1 }));
     }
 
     private void updateSaturation() {
-        satBitmap = _update(x -> HSVToColor(new float[] { hsv[0], x * 1.0f / width, hsv[2] }));
+        satBitmap = _updateBitmap(x -> HSVToColor(new float[] { hsv[0], x * 1.0f / width, hsv[2] }));
     }
 
     private void updateValue() {
-        valBitmap = _update(i -> HSVToColor(new float[] { hsv[0], hsv[1], i * 1.0f / width }));
+        valBitmap = _updateBitmap(i -> HSVToColor(new float[] { hsv[0], hsv[1], i * 1.0f / width }));
     }
 
     private void updateMarker(Canvas c, float x) {
@@ -93,12 +96,16 @@ public class ColorPicker {
 
     private void updateColor() {
         int color = Color.HSVToColor(hsv);
+        // ペンの色を更新
         view.getLocalPen().setColor(color);
+        // カラーボタンの色を更新
+        // Gradientにするとこう描けて、動く
+        // ここらへんはdrawableの構造に依存する？ layer-listとか使ってるとめんどくさそう
         GradientDrawable bgShape = (GradientDrawable)colorButton.getBackground();
         bgShape.setColor(color);
     }
 
-    private ImageView _wrapImageView(LinearLayout parentLayout, Bitmap bitmap) {
+    private ImageView _createAndAddImageView(LinearLayout parentLayout, Bitmap bitmap) {
         ImageView iv = new ImageView(parent);
         iv.setImageBitmap(bitmap);
         parentLayout.addView(iv);
@@ -110,34 +117,38 @@ public class ColorPicker {
             .touches(iv)
             .throttleLast(2, TimeUnit.MILLISECONDS)
             .map(ev -> ev.getX())
-            .map(x -> x < 0 ? 0 : x > width ? width : x)
-            .observeOn(AndroidSchedulers.mainThread());
+            .map(x -> x < 0 ? 0 : x > width ? width : x)    // はみ出していても座標として入ってくるので
+            .observeOn(AndroidSchedulers.mainThread());     // 描画はメインスレッドで
     }
 
     public void show() {
         LinearLayout popLayout = (LinearLayout)parent.getLayoutInflater().inflate(R.layout.color_picker, null);
 
+        // マーカー用Bitmap
         Bitmap mhueBitmap = Bitmap.createBitmap(width, markerHeight, Config.ARGB_8888);
         Bitmap msatBitmap = Bitmap.createBitmap(width, markerHeight, Config.ARGB_8888);
         Bitmap mvalBitmap = Bitmap.createBitmap(width, markerHeight, Config.ARGB_8888);
 
+        // マーカー用Canvas
         Canvas mhc = new Canvas(mhueBitmap);
-        mhc.drawColor(Color.WHITE);
-        updateMarker(mhc, hsv[0] * width / 360.f);
         Canvas msc = new Canvas(msatBitmap);
-        msc.drawColor(Color.WHITE);
-        updateMarker(msc, hsv[1] * width);
         Canvas mvc = new Canvas(mvalBitmap);
+        mhc.drawColor(Color.WHITE);
+        msc.drawColor(Color.WHITE);
         mvc.drawColor(Color.WHITE);
+        updateMarker(mhc, hsv[0] * width / 360.f);
+        updateMarker(msc, hsv[1] * width);
         updateMarker(mvc, hsv[2] * width);
 
-        _wrapImageView(popLayout, mhueBitmap);
-        ImageView hv = _wrapImageView(popLayout, hueBitmap);
-        _wrapImageView(popLayout, msatBitmap);
-        ImageView sv = _wrapImageView(popLayout, satBitmap);
-        _wrapImageView(popLayout, mvalBitmap);
-        ImageView vv = _wrapImageView(popLayout, valBitmap);
+        // BitmapをもとにImageViewを作成して登録, 登録した順にLinearLayoutに追加される
+        _createAndAddImageView(popLayout, mhueBitmap);
+        ImageView hv = _createAndAddImageView(popLayout, hueBitmap);
+        _createAndAddImageView(popLayout, msatBitmap);
+        ImageView sv = _createAndAddImageView(popLayout, satBitmap);
+        _createAndAddImageView(popLayout, mvalBitmap);
+        ImageView vv = _createAndAddImageView(popLayout, valBitmap);
 
+        // 色選択を監視
         _observeImageView(hv).subscribe(h -> {
                 hsv[0] = h * 360.f / width;
                 updateMarker(mhc, h);
@@ -164,8 +175,10 @@ public class ColorPicker {
                 updateColor();
             });
 
+        // ポップアップウィンドウを作成して表示
         pw = new PopupWindow(parent);
         pw.setContentView(popLayout);
+        // ここに指定する数字よくわからん
         pw.showAtLocation(view, Gravity.END | Gravity.BOTTOM, 16, 256 + 16);
     }
 

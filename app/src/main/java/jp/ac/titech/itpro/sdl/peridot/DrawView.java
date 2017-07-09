@@ -96,7 +96,7 @@ public class DrawView extends View {
         lines
             .buffer(3, 2)   // 3つ組を作って始点を２つずらす (補間に3点使うため)
             .filter(p -> p.size() == 3) // 3つ未満なら除外 (onComplete時に3つなくても流れてくる)
-            .observeOn(AndroidSchedulers.mainThread())
+            .observeOn(AndroidSchedulers.mainThread()) // 描画はメインスレッドで
             .subscribe(p -> {
                 float x1 = p.get(0).first;
                 float y1 = p.get(0).second;
