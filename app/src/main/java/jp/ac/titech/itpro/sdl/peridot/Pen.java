@@ -31,6 +31,11 @@ public class Pen {
         eraser.setColor(Color.WHITE);
     }
 
+    public Pen(DrawView view, int color, float width) {
+        this(view);
+        set(color, width, Shape.Circle);
+    }
+
     public Pen(DrawView view, int color, float width, Shape shape) {
         this(view);
         set(color, width, shape);

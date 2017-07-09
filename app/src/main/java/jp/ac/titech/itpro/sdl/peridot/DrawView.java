@@ -14,6 +14,8 @@ import android.view.View;
 
 import com.annimon.stream.IntStream;
 
+import java.util.HashMap;
+
 import io.reactivex.android.schedulers.AndroidSchedulers;
 import io.reactivex.subjects.PublishSubject;
 
@@ -23,10 +25,13 @@ public class DrawView extends View {
 
     private static final String TAG = "DrawView";
 
+    private Communicator comm;
+    private HashMap<String, PublishSubject<Pair<Float, Float>>> linesMap = new HashMap<>();
+
     private Canvas canvas;
     private Bitmap bitmap;
     private Rect bitmapRect;
-    private Pen localPen = new Pen(this,Color.RED, 16.0f,Pen.Shape.Circle);
+    private Pen localPen = new Pen(this,Color.RED, 16.0f);
     PublishSubject<Pair<Float, Float>> localLines;
 
     private final int target[] = {
@@ -46,6 +51,15 @@ public class DrawView extends View {
 
     public DrawView(Context context, AttributeSet attrs, int defStyleAttr) {
         super(context, attrs, defStyleAttr);
+    }
+
+    public void setCommunicator(Communicator comm) {
+        this.comm = comm;
+    }
+
+    public void sendDrawMessage(int action, Pen pen, float x, float y) {
+        final int color = pen.getMode() == Pen.Mode.Draw ? pen.getColor() : Color.WHITE;
+        comm.sendDrawMessage(action, pen.getWidth(), color, x, y);
     }
 
     protected void onSizeChanged(int w, int h, int oldw, int oldh) {
@@ -71,7 +85,7 @@ public class DrawView extends View {
         // 関係のないイベントを除外
         if(!IntStream.of(target).anyMatch(e -> e == ev.getAction())) return true;
 
-        int action = ev.getAction();
+        final int action = ev.getAction();
 
         // 線の開始
         if(action == MotionEvent.ACTION_DOWN) {
@@ -82,6 +96,7 @@ public class DrawView extends View {
 
         // 座標だけ送信
         localLines.onNext(Pair.create(ev.getX(), ev.getY()));
+        Log.d(TAG, "touch " + ev.getX() + ", " + ev.getY());
 
         // 線の終了
         if(action == MotionEvent.ACTION_UP || action == MotionEvent.ACTION_CANCEL) {
@@ -89,10 +104,35 @@ public class DrawView extends View {
             localLines = null;
         }
 
+        sendDrawMessage(action, localPen, ev.getX(), ev.getY());
+
         return true;
     }
 
-    public void observe(PublishSubject<Pair<Float, Float>> lines, Pen pen) {
+    public void invokleTouchEvent(String uuid, int action, Pen pen, float x, float y) {
+        // 線の開始
+        if(action == MotionEvent.ACTION_DOWN) {
+            // 点列を送るためのSubjectを作成
+            PublishSubject<Pair<Float, Float>> subject = PublishSubject.create();
+            linesMap.put(uuid, subject);
+            observe(subject, pen);
+        }
+
+        // 座標だけ送信
+        if(linesMap.containsKey(uuid)) {
+            linesMap.get(uuid).onNext(Pair.create(x, y));
+        }
+
+        // 線の終了
+        if(action == MotionEvent.ACTION_UP || action == MotionEvent.ACTION_CANCEL) {
+            if(linesMap.containsKey(uuid)) {
+                linesMap.get(uuid).onComplete();
+                linesMap.remove(uuid);
+            }
+        }
+    }
+
+    private void observe(PublishSubject<Pair<Float, Float>> lines, Pen pen) {
         lines
             .buffer(3, 2)   // 3つ組を作って始点を２つずらす (補間に3点使うため)
             .filter(p -> p.size() == 3) // 3つ未満なら除外 (onComplete時に3つなくても流れてくる)
@@ -113,7 +153,6 @@ public class DrawView extends View {
                 }
                 // ASAP描画指示
                 invalidate();
-                Log.d(TAG, "touch " + x1 + ", " + y1);
             });
     }
 
@@ -142,6 +181,7 @@ public class DrawView extends View {
 
     public void clear() {
         canvas.drawColor(Color.WHITE);
+        invalidate();
     }
 
     public Pen getLocalPen() {
