@@ -6,6 +6,7 @@ import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
 import android.graphics.Rect;
+import android.os.Environment;
 import android.util.AttributeSet;
 import android.util.Log;
 import android.util.Pair;
@@ -14,6 +15,9 @@ import android.view.View;
 
 import com.annimon.stream.IntStream;
 
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
 import java.util.HashMap;
 
 import io.reactivex.android.schedulers.AndroidSchedulers;
@@ -186,6 +190,20 @@ public class DrawView extends View {
 
     public Pen getLocalPen() {
         return localPen;
+    }
+
+
+    public void saveFile(String dirname, String filename) throws IOException {
+        File extStrageDir = Environment.getExternalStorageDirectory();
+        //String dir = getContext().getExternalFilesDir(null).getAbsolutePath();
+        String dirpath = extStrageDir.getAbsolutePath() + "/" + Environment.DIRECTORY_DCIM + "/" + dirname;
+        File dir = new File(dirpath);
+        if(!dir.exists()) dir.mkdirs();
+        File file = new File(dirpath, filename);
+        Log.d(TAG, file.getAbsolutePath());
+        FileOutputStream outStream = new FileOutputStream(file);
+        bitmap.compress(Bitmap.CompressFormat.PNG, 100, outStream);
+        outStream.close();
     }
 
 }
