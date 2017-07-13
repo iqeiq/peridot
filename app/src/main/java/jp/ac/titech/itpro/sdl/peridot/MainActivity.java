@@ -33,6 +33,7 @@ public class MainActivity extends AppCompatActivity {
     @BindView(R.id.toggle_online) ToggleButton toggle;
     @BindView(R.id.button_color) Button colorButton;
     @BindView(R.id.button_eraser) ToggleButton eraser;
+    @BindView(R.id.button_spuit) ToggleButton spuit;
     @BindView(R.id.button_clear) FloatingActionButton clearButton;
     @BindInt(R.integer.max_width) int maxBrushWidth;
     @BindString(R.string.server_host) String serverHost;
@@ -71,6 +72,9 @@ public class MainActivity extends AppCompatActivity {
         // eraser
         clicks(eraser).subscribe(p -> {
             view.getLocalPen().setMode(eraser.isChecked() ? Pen.Mode.Eraser : Pen.Mode.Draw);
+            // スポイトモードから離脱
+            spuit.setChecked(false);
+            view.setMode(DrawView.Mode.DRAW);
         });
 
         // colorボタン
@@ -84,7 +88,24 @@ public class MainActivity extends AppCompatActivity {
             // 色選択をしたら消しゴムモードから脱出するようにする
             eraser.setChecked(false);
             view.getLocalPen().setMode(Pen.Mode.Draw);
+            // スポイトモードから離脱
+            spuit.setChecked(false);
+            view.setMode(DrawView.Mode.DRAW);
         });
+
+        // カラーピッカーの変更イベントを検知
+        cp.onPicked().subscribe(c -> view.getLocalPen().setColor(c));
+
+        // spuit
+        clicks(spuit).subscribe(p -> {
+            view.setMode(spuit.isChecked() ? DrawView.Mode.SPUIT : DrawView.Mode.DRAW);
+            // 消しゴムモードから脱出するようにする
+            eraser.setChecked(false);
+            view.getLocalPen().setMode(Pen.Mode.Draw);
+        });
+
+        view.onSpuit().subscribe(c -> cp.setColor(c));
+
 
         // onlineボタン
         clicks(toggle).subscribe(p -> {
