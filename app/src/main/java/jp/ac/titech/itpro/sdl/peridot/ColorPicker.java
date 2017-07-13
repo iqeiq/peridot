@@ -8,6 +8,7 @@ import android.graphics.Color;
 import android.graphics.Paint;
 import android.graphics.PorterDuff;
 import android.graphics.drawable.GradientDrawable;
+import android.util.Pair;
 import android.view.Gravity;
 import android.widget.Button;
 import android.widget.ImageView;
@@ -21,6 +22,7 @@ import java.util.concurrent.TimeUnit;
 
 import io.reactivex.Observable;
 import io.reactivex.android.schedulers.AndroidSchedulers;
+import io.reactivex.subjects.PublishSubject;
 
 import static android.graphics.Color.HSVToColor;
 import static android.graphics.Color.RGBToHSV;
@@ -30,6 +32,11 @@ public class ColorPicker {
     private Activity parent;
     private DrawView view;
     private Button colorButton;
+    private PublishSubject<Integer> event = PublishSubject.create();
+    private PublishSubject<Pair<Float, Boolean>> hueChange = PublishSubject.create();
+    private PublishSubject<Pair<Float, Boolean>> satChange = PublishSubject.create();
+    private PublishSubject<Pair<Float, Boolean>> valChange = PublishSubject.create();
+    private PublishSubject<Boolean> bitmapChange = PublishSubject.create();
 
     private PopupWindow pw;
 
@@ -38,7 +45,12 @@ public class ColorPicker {
     private Bitmap hueBitmap;
     private Bitmap satBitmap;
     private Bitmap valBitmap;
-
+    private Bitmap mhueBitmap;
+    private Bitmap msatBitmap;
+    private Bitmap mvalBitmap;
+    private Canvas mhc;
+    private Canvas msc;
+    private Canvas mvc;
     private final Paint marker = new Paint();
 
     private final int width = 720;
@@ -51,17 +63,54 @@ public class ColorPicker {
         this.view = view;
         this.colorButton = colorButton;
 
+        // マーカー用Bitmap
+        mhueBitmap = Bitmap.createBitmap(width, markerHeight, Config.ARGB_8888);
+        msatBitmap = Bitmap.createBitmap(width, markerHeight, Config.ARGB_8888);
+        mvalBitmap = Bitmap.createBitmap(width, markerHeight, Config.ARGB_8888);
+        mhc = new Canvas(mhueBitmap);
+        msc = new Canvas(msatBitmap);
+        mvc = new Canvas(mvalBitmap);
+
         marker.setColor(Color.GRAY);
         marker.setStrokeWidth(4.f);
 
-        // 初期選択色をペンの色に合わせる
-        int c = view.getLocalPen().getColor();
-        RGBToHSV(Color.red(c), Color.green(c), Color.blue(c), hsv);
+        // 色変更イベント
+        hueChange.subscribe(p -> {
+            hsv[0] = p.first;
+            updateMarker(mhc, hsv[0] * width / 360.f);
+            if(p.second) {
+                updateSaturation();
+                updateValue();
+                updateColor();
+                bitmapChange.onNext(true);
+            }
+        });
 
-        // カラーマップを作成
+        satChange.subscribe(p ->  {
+            hsv[1] = p.first;
+            updateMarker(msc, hsv[1] * width);
+            if(p.second) {
+                updateValue();
+                updateColor();
+                bitmapChange.onNext(true);
+            }
+        });
+
+        valChange.subscribe(p -> {
+            hsv[2] = p.first;
+            updateMarker(mvc, hsv[2] * width);
+            if(p.second) {
+                updateSaturation();
+                updateColor();
+                bitmapChange.onNext(true);
+            }
+        });
+
+        // 色相カラーマップを作成 (どの色を選んでもここは変わらないので最初だけしか呼ばない)
         updateHue();
-        updateSaturation();
-        updateValue();
+
+        // 初期選択色をペンの色に合わせる
+        setColor(view.getLocalPen().getColor());
     }
 
     private Bitmap _updateBitmap(Function<Integer, Integer> f) {
@@ -94,15 +143,18 @@ public class ColorPicker {
         c.drawLine(x + 10, 0, x, markerHeight, marker);
     }
 
+    public Observable<Integer> onPicked() {
+        return event;
+    }
+
     private void updateColor() {
         int color = Color.HSVToColor(hsv);
-        // ペンの色を更新
-        view.getLocalPen().setColor(color);
-        // カラーボタンの色を更新
         // Gradientにするとこう描けて、動く
         // ここらへんはdrawableの構造に依存する？ layer-listとか使ってるとめんどくさそう
         GradientDrawable bgShape = (GradientDrawable)colorButton.getBackground();
         bgShape.setColor(color);
+        // 更新通知
+        event.onNext(color);
     }
 
     private ImageView _createAndAddImageView(LinearLayout parentLayout, Bitmap bitmap) {
@@ -121,24 +173,17 @@ public class ColorPicker {
             .observeOn(AndroidSchedulers.mainThread());     // 描画はメインスレッドで
     }
 
+    public void setColor(int c) {
+        float[] _hsv = new float[3];
+        RGBToHSV(Color.red(c), Color.green(c), Color.blue(c), _hsv);
+        satChange.onNext(Pair.create(_hsv[1], false));
+        valChange.onNext(Pair.create(_hsv[2], false));
+        hueChange.onNext(Pair.create(_hsv[0], true));
+    }
+
+
     public void show() {
         LinearLayout popLayout = (LinearLayout)parent.getLayoutInflater().inflate(R.layout.color_picker, null);
-
-        // マーカー用Bitmap
-        Bitmap mhueBitmap = Bitmap.createBitmap(width, markerHeight, Config.ARGB_8888);
-        Bitmap msatBitmap = Bitmap.createBitmap(width, markerHeight, Config.ARGB_8888);
-        Bitmap mvalBitmap = Bitmap.createBitmap(width, markerHeight, Config.ARGB_8888);
-
-        // マーカー用Canvas
-        Canvas mhc = new Canvas(mhueBitmap);
-        Canvas msc = new Canvas(msatBitmap);
-        Canvas mvc = new Canvas(mvalBitmap);
-        mhc.drawColor(Color.WHITE);
-        msc.drawColor(Color.WHITE);
-        mvc.drawColor(Color.WHITE);
-        updateMarker(mhc, hsv[0] * width / 360.f);
-        updateMarker(msc, hsv[1] * width);
-        updateMarker(mvc, hsv[2] * width);
 
         // BitmapをもとにImageViewを作成して登録, 登録した順にLinearLayoutに追加される
         _createAndAddImageView(popLayout, mhueBitmap);
@@ -148,32 +193,15 @@ public class ColorPicker {
         _createAndAddImageView(popLayout, mvalBitmap);
         ImageView vv = _createAndAddImageView(popLayout, valBitmap);
 
-        // 色選択を監視
-        _observeImageView(hv).subscribe(h -> {
-                hsv[0] = h * 360.f / width;
-                updateMarker(mhc, h);
-                updateSaturation();
-                sv.setImageBitmap(satBitmap);
-                updateValue();
-                vv.setImageBitmap(valBitmap);
-                updateColor();
-            });
+        // ビューの色選択を監視
+        _observeImageView(hv).subscribe(h -> hueChange.onNext(Pair.create(h * 360.f / width, true)));
+        _observeImageView(sv).subscribe(s -> satChange.onNext(Pair.create(s  * 1.0f / width, true)));
+        _observeImageView(vv).subscribe(v -> valChange.onNext(Pair.create(v * 1.0f / width, true)));
 
-        _observeImageView(sv).subscribe(s -> {
-                hsv[1] = s  * 1.0f / width;
-                updateMarker(msc, s);
-                updateValue();
-                vv.setImageBitmap(valBitmap);
-                updateColor();
-            });
-
-        _observeImageView(vv).subscribe(v -> {
-                hsv[2] = v * 1.0f / width;
-                updateMarker(mvc, v);
-                updateSaturation();
-                sv.setImageBitmap(satBitmap);
-                updateColor();
-            });
+        bitmapChange.filter(v -> pw.isShowing()).subscribe(v -> {
+            sv.setImageBitmap(satBitmap);
+            vv.setImageBitmap(valBitmap);
+        });
 
         // ポップアップウィンドウを作成して表示
         pw = new PopupWindow(parent);

@@ -20,6 +20,7 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.util.HashMap;
 
+import io.reactivex.Observable;
 import io.reactivex.android.schedulers.AndroidSchedulers;
 import io.reactivex.subjects.PublishSubject;
 
@@ -36,7 +37,8 @@ public class DrawView extends View {
     private Bitmap bitmap;
     private Rect bitmapRect;
     private Pen localPen = new Pen(this,Color.RED, 16.0f);
-    PublishSubject<Pair<Float, Float>> localLines;
+    private PublishSubject<Pair<Float, Float>> localLines;
+    private PublishSubject<Integer> spuitColor = PublishSubject.create();
 
     private final int target[] = {
         MotionEvent.ACTION_DOWN,
@@ -44,6 +46,12 @@ public class DrawView extends View {
         MotionEvent.ACTION_UP,
         MotionEvent.ACTION_CANCEL
     };
+
+    public enum Mode {
+        DRAW,
+        SPUIT
+    }
+    private Mode mode = Mode.DRAW;
 
     public DrawView(Context context) {
         super(context, null);
@@ -84,13 +92,7 @@ public class DrawView extends View {
         c.drawBitmap(bitmap, bitmapRect, bitmapRect, null);
     }
 
-    @Override
-    public boolean onTouchEvent(MotionEvent ev) {
-        // 関係のないイベントを除外
-        if(!IntStream.of(target).anyMatch(e -> e == ev.getAction())) return true;
-
-        final int action = ev.getAction();
-
+    protected void processDraw(int action, float x, float y) {
         // 線の開始
         if(action == MotionEvent.ACTION_DOWN) {
             // 点列を送るためのSubjectを作成
@@ -99,8 +101,8 @@ public class DrawView extends View {
         }
 
         // 座標だけ送信
-        localLines.onNext(Pair.create(ev.getX(), ev.getY()));
-        Log.d(TAG, "touch " + ev.getX() + ", " + ev.getY());
+        localLines.onNext(Pair.create(x, y));
+        Log.d(TAG, "touch " + x + ", " + y);
 
         // 線の終了
         if(action == MotionEvent.ACTION_UP || action == MotionEvent.ACTION_CANCEL) {
@@ -108,7 +110,28 @@ public class DrawView extends View {
             localLines = null;
         }
 
-        sendDrawMessage(action, localPen, ev.getX(), ev.getY());
+        sendDrawMessage(action, localPen, x, y);
+    }
+
+    protected void processSpuit(int action, float x, float y) {
+        // 線の開始
+        if(action == MotionEvent.ACTION_DOWN || action == MotionEvent.ACTION_MOVE) {
+            int color = bitmap.getPixel(Math.round(x), Math.round(y));
+            spuitColor.onNext(color);
+        }
+    }
+
+    @Override
+    public boolean onTouchEvent(MotionEvent ev) {
+        // 関係のないイベントを除外
+        if(!IntStream.of(target).anyMatch(e -> e == ev.getAction())) return true;
+
+        final int action = ev.getAction();
+
+        switch (mode) {
+            case DRAW: processDraw(action, ev.getX(), ev.getY()); break;
+            case SPUIT: processSpuit(action, ev.getX(), ev.getY()); break;
+        }
 
         return true;
     }
@@ -192,7 +215,6 @@ public class DrawView extends View {
         return localPen;
     }
 
-
     public void saveFile(String dirname, String filename) throws IOException {
         File extStrageDir = Environment.getExternalStorageDirectory();
         //String dir = getContext().getExternalFilesDir(null).getAbsolutePath();
@@ -206,4 +228,11 @@ public class DrawView extends View {
         outStream.close();
     }
 
+    public void setMode(Mode mode) {
+        this.mode = mode;
+    }
+
+    public Observable<Integer> onSpuit() {
+        return spuitColor;
+    }
 }
