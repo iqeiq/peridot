@@ -2,11 +2,16 @@ package jp.ac.titech.itpro.sdl.peridot;
 
 import android.content.pm.PackageManager;
 import android.graphics.drawable.GradientDrawable;
+import android.hardware.Sensor;
+import android.hardware.SensorEvent;
+import android.hardware.SensorEventListener;
+import android.hardware.SensorManager;
 import android.media.MediaScannerConnection;
 import android.os.Bundle;
 import android.support.design.widget.FloatingActionButton;
 import android.support.v4.app.ActivityCompat;
 import android.support.v4.content.ContextCompat;
+import android.support.v7.app.AlertDialog;
 import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
 import android.view.Gravity;
@@ -29,11 +34,12 @@ import butterknife.BindString;
 import butterknife.BindView;
 import butterknife.ButterKnife;
 import io.reactivex.android.schedulers.AndroidSchedulers;
+import io.reactivex.subjects.PublishSubject;
 
 import static com.jakewharton.rxbinding2.view.RxView.clicks;
 
 
-public class MainActivity extends AppCompatActivity {
+public class MainActivity extends AppCompatActivity implements SensorEventListener {
 
     private static final String TAG = "MainActivity";
 
@@ -55,6 +61,10 @@ public class MainActivity extends AppCompatActivity {
     private Communicator comm;
     private final static int REQCODE_PERMISSIONS = 1111;
 
+    private SensorManager sensorMgr;
+    private Sensor accelerometer;
+    private PublishSubject<Float> sensor = PublishSubject.create();
+
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -64,6 +74,12 @@ public class MainActivity extends AppCompatActivity {
 
         comm = new Communicator(serverHost, serverPort);
         view.setCommunicator(comm);
+
+        sensorMgr = (SensorManager) getSystemService(SENSOR_SERVICE);
+        accelerometer = sensorMgr.getDefaultSensor(Sensor.TYPE_ACCELEROMETER);
+        if (accelerometer == null) {
+            toastMessage("sensor not found...");
+        }
 
         // 線形ではなく指数スケールにする
         float param = 100.f / (float)Math.log(maxBrushWidth);
@@ -81,6 +97,29 @@ public class MainActivity extends AppCompatActivity {
             view.clear();
             comm.sendClearMessage();
         });
+
+        sensor
+            .filter(vx -> vx < -10)
+            .debounce(30, TimeUnit.MILLISECONDS)
+            .buffer(700, TimeUnit.MILLISECONDS)
+            .filter(x -> x.size() > 1)
+            .observeOn(AndroidSchedulers.mainThread())
+            .map(x -> new AlertDialog.Builder(this)
+                    .setTitle("clear")
+                    .setMessage("画面を消去しますか？")
+                    .setPositiveButton("OK", (d, which)-> {
+                        view.clear();
+                        comm.sendClearMessage();
+                    })
+                    .setNegativeButton("Cancel", null)
+                    .show()
+            )
+            .scan((prev, now)-> {
+                if(prev.isShowing()) prev.cancel();
+                return now;
+            })
+            .subscribe(d -> Log.d(TAG, "dialog"));
+
 
         // eraser
         clicks(eraser).subscribe(p -> {
@@ -174,6 +213,29 @@ public class MainActivity extends AppCompatActivity {
     protected void onDestroy() {
         cp.destroy();
         super.onDestroy();
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        sensorMgr.registerListener(this, accelerometer, SensorManager.SENSOR_DELAY_FASTEST);
+    }
+
+    @Override
+    protected void onPause() {
+        super.onPause();
+        Log.i(TAG, "onPause");
+        sensorMgr.unregisterListener(this);
+    }
+
+    @Override
+    public void onSensorChanged(SensorEvent event) {
+        sensor.onNext(event.values[0]);
+    }
+
+    @Override
+    public void onAccuracyChanged(Sensor sensor, int accuracy) {
+
     }
 
     private void toastMessage(String msg) {
