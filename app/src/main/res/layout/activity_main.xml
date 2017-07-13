@@ -73,5 +73,13 @@
         android:textOn=""
         android:textOff="" />
 
+    <Button
+        android:id="@+id/button_save"
+        android:layout_width="48dp"
+        android:layout_height="48dp"
+        android:layout_margin="16dp"
+        android:layout_gravity="top|end"
+        android:background="@drawable/save_button"/>
+
 
 </FrameLayout>
