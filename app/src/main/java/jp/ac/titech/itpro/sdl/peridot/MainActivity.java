@@ -2,6 +2,7 @@ package jp.ac.titech.itpro.sdl.peridot;
 
 import android.content.pm.PackageManager;
 import android.graphics.drawable.GradientDrawable;
+import android.media.MediaScannerConnection;
 import android.os.Bundle;
 import android.support.design.widget.FloatingActionButton;
 import android.support.v4.app.ActivityCompat;
@@ -157,8 +158,15 @@ public class MainActivity extends AppCompatActivity {
                     ActivityCompat.requestPermissions(this, new String[]{android.Manifest.permission.WRITE_EXTERNAL_STORAGE}, REQCODE_PERMISSIONS);
                     return;
                 }
-                view.saveFile(appName, filename);
+                String filepath = view.saveFile(appName, filename);
                 toastMessage("saved: " + filename);
+
+                String[] paths = {filepath};//保存された画像のパス
+                String[] mimeTypes = {"image/png"};
+                MediaScannerConnection.scanFile(getApplicationContext(), paths, mimeTypes, (path, uri)-> {
+                    Log.d(TAG, "scanFile:" + path +  " / " + uri);
+                });
+
             } catch (FileNotFoundException e) {
                 e.printStackTrace();
                 toastMessage("SD Card not found...?");

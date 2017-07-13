@@ -215,10 +215,10 @@ public class DrawView extends View {
         return localPen;
     }
 
-    public void saveFile(String dirname, String filename) throws IOException {
+    public String saveFile(String dirname, String filename) throws IOException {
         File extStrageDir = Environment.getExternalStorageDirectory();
         //String dir = getContext().getExternalFilesDir(null).getAbsolutePath();
-        String dirpath = extStrageDir.getAbsolutePath() + "/" + Environment.DIRECTORY_DCIM + "/" + dirname;
+        String dirpath = extStrageDir.getAbsolutePath() + "/Pictures/" + dirname;
         File dir = new File(dirpath);
         if(!dir.exists()) dir.mkdirs();
         File file = new File(dirpath, filename);
@@ -226,6 +226,7 @@ public class DrawView extends View {
         FileOutputStream outStream = new FileOutputStream(file);
         bitmap.compress(Bitmap.CompressFormat.PNG, 100, outStream);
         outStream.close();
+        return file.getAbsolutePath();
     }
 
     public void setMode(Mode mode) {
