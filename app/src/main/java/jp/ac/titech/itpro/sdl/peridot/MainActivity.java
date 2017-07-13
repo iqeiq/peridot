@@ -119,7 +119,6 @@ public class MainActivity extends AppCompatActivity {
 
         view.onSpuit().subscribe(c -> cp.setColor(c));
 
-
         // onlineボタン
         clicks(toggle).subscribe(p -> {
             if(toggle.isChecked()) {
@@ -138,15 +137,9 @@ public class MainActivity extends AppCompatActivity {
                             Log.d(TAG, "unknown type: " + message.type);
                         }
                     });
-                // toastMessage("接続に失敗しました");
-                // toggle.setChecked(false);
-
-            } else /*if(comm.getState() == Communicator.State.CONNECTED)*/ {
+            } else {
                 comm.disconnect();
-            } /*else if(comm.getState() == Communicator.State.CONNECTING) {
-                toastMessage("please wait... try again later...");
-                toggle.setChecked(true);
-            }*/
+            }
         });
 
         // save
